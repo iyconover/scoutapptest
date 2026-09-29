@@ -63,7 +63,6 @@ export function CheckCard({
 const DRIVETRAIN_OPTIONS: { value: Drivetrain; label: string }[] = [
   { value: "swerve", label: "Swerve" },
   { value: "tank", label: "Tank" },
-  { value: "mecanum", label: "Mecanum" },
   { value: "other", label: "Other" },
 ]
 
@@ -88,7 +87,7 @@ export function DrivetrainPicker({
         const picked = DRIVETRAIN_OPTIONS.find((o) => o.value === next[0])
         if (picked) onChange(picked.value)
       }}
-      className="grid w-full grid-cols-2 sm:grid-cols-4"
+      className="grid w-full grid-cols-3"
     >
       {DRIVETRAIN_OPTIONS.map((option) => (
         <ToggleGroupItem

@@ -28,7 +28,6 @@ export const COLUMN_LABELS: Record<Column, string> = {
 export const drivetrainV = v.union(
   v.literal("swerve"),
   v.literal("tank"),
-  v.literal("mecanum"),
   v.literal("other"),
 )
 export type Drivetrain = Infer<typeof drivetrainV>

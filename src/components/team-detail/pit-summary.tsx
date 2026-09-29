@@ -38,7 +38,6 @@ const GROUPS: { title: string; items: { key: Capability; label: string }[] }[] =
 const DRIVETRAIN_LABELS: Record<Drivetrain, string> = {
   swerve: "Swerve",
   tank: "Tank",
-  mecanum: "Mecanum",
   other: "Other",
 }
 
