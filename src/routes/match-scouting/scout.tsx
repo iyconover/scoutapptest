@@ -1,11 +1,12 @@
 import { useMutation, useQuery } from "convex/react"
-import { ArrowLeftIcon, CheckIcon, ClipboardListIcon, LockIcon, ShieldIcon } from "lucide-react"
+import { ArrowLeftIcon, CheckIcon, ChevronDownIcon, ClipboardListIcon, LockIcon, ShieldIcon } from "lucide-react"
 import { useEffect, useRef, useState, type ReactNode } from "react"
 import { Link } from "react-router"
 import { toast } from "sonner"
 
 import { AssignedNotes } from "@/components/match-scouting/assigned-notes"
-import { LeadTools } from "@/components/match-scouting/lead-panel"
+import { LeadExtras, LeadStatusStrip, LeadTools } from "@/components/match-scouting/lead-panel"
+import { useWaitingScouters } from "@/components/match-scouting/use-waiting-scouters"
 import { ManualTeamsForm } from "@/components/match-scouting/manual-teams-form"
 import {
   changedNotes,
@@ -25,7 +26,17 @@ import { PageContainer, PageHeader } from "@/components/page-header"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty"
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import { useViewer } from "@/hooks/use-viewer"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Spinner } from "@/components/ui/spinner"
 import { useIsDesktop } from "@/hooks/use-media-query"
@@ -153,24 +164,6 @@ function ScoutShell({
             {!isLead && <span>{leadName ? `Lead scout: ${leadName}` : "No lead scout assigned"}</span>}
           </span>
         }
-        actions={
-          isLead && !isDesktop ? (
-            <Sheet>
-              <SheetTrigger render={<Button variant="outline" className="h-11" />}>
-                <ShieldIcon /> Lead tools
-              </SheetTrigger>
-              <SheetContent side="bottom" className="max-h-[85svh] gap-0">
-                <SheetHeader className="pr-12">
-                  <SheetTitle>Lead tools</SheetTitle>
-                  <SheetDescription>Run match {current.matchNumber} for everyone.</SheetDescription>
-                </SheetHeader>
-                <div className="min-h-0 overflow-y-auto px-4 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
-                  <LeadTools current={current} />
-                </div>
-              </SheetContent>
-            </Sheet>
-          ) : undefined
-        }
       />
     </div>
   )
@@ -187,6 +180,21 @@ function ScoutShell({
             </h2>
             <LeadTools current={current} />
           </aside>
+        </div>
+      ) : isLead ? (
+        // Phones: everything the lead needs on one scrolling page — status strip, ranking, then extras.
+        <div className="flex flex-col gap-4">
+          {current.match && <LeadStatusStrip match={current.match} />}
+          {children}
+          <details className="group rounded-xl border bg-card">
+            <summary className="flex min-h-12 cursor-pointer list-none items-center gap-2 px-4 font-medium">
+              <ShieldIcon className="size-4" /> More lead tools
+              <ChevronDownIcon className="ml-auto size-4 transition-transform group-open:rotate-180" />
+            </summary>
+            <div className="px-4 pb-4">
+              <LeadExtras current={current} />
+            </div>
+          </details>
         </div>
       ) : (
         <div className="flex flex-col gap-4">{children}</div>
@@ -237,8 +245,34 @@ function RankingForm({ current, match }: { current: CurrentScouting; match: Curr
   const hasChanges = orderChanged || noteChanges.length > 0
   const upToDate = submission !== null && !hasChanges
 
-  async function onSubmit() {
-    if (!confirmed || !hasChanges) return
+  const isLead = current.myRole === "lead"
+  const viewer = useViewer()
+  const closeMatch = useMutation(api.matchScouting.closeMatch)
+  const waiting = useWaitingScouters(isLead ? match : null, viewer?.userId)
+  const [confirmClose, setConfirmClose] = useState(false)
+
+  /** Lead: save anything unsaved, then close the match — one tap when everyone is in. */
+  async function submitAndClose() {
+    setConfirmClose(false)
+    if (hasChanges && !(await onSubmit())) return
+    setPending(true)
+    try {
+      await closeMatch({ matchId })
+      toast.success(`Match ${match.number} closed`, { description: `Everyone moves on to match ${match.number + 1}.` })
+    } catch (err) {
+      toast.error(errorMessage(err))
+    } finally {
+      setPending(false)
+    }
+  }
+
+  function onLeadFinish() {
+    if (waiting && waiting.length > 0) setConfirmClose(true)
+    else void submitAndClose()
+  }
+
+  async function onSubmit(): Promise<boolean> {
+    if (!confirmed || !hasChanges) return false
     setPending(true)
     let rankingSaved = false
     try {
@@ -251,12 +285,14 @@ function RankingForm({ current, match }: { current: CurrentScouting; match: Curr
       toast.success(submission ? "Ranking updated" : "Ranking submitted", {
         description: "You can update it until the match is closed.",
       })
+      return true
     } catch (err) {
       if (rankingSaved && orderChanged) {
         toast.error("Your ranking was saved, but your notes weren't.", { description: errorMessage(err) })
       } else {
         toast.error(errorMessage(err), { description: submitErrorDescription(err) })
       }
+      return false
     } finally {
       setPending(false)
     }
@@ -277,10 +313,38 @@ function RankingForm({ current, match }: { current: CurrentScouting; match: Curr
 
   const submitLabel = upToDate ? "Submitted" : submission ? "Update ranking" : "Submit ranking"
 
+  if (isLead && confirmed && waiting !== undefined) {
+    status =
+      waiting.length === 0
+        ? "Everyone active has submitted."
+        : `Waiting on ${waiting.length}: ${waiting.join(", ")}`
+  }
+
+  const leadBar = (
+    <SubmitBar status={status}>
+      {!confirmed ? (
+        <Button variant="outline" className="h-12 flex-1 text-base" onClick={() => setOrder(matchId, order)} disabled={pending}>
+          <CheckIcon /> This order is correct
+        </Button>
+      ) : (
+        hasChanges && (
+          <Button variant="outline" className="h-12 px-4 text-base" onClick={() => void onSubmit()} disabled={pending}>
+            Save only
+          </Button>
+        )
+      )}
+      <Button className="h-12 flex-1 text-base" onClick={onLeadFinish} disabled={!confirmed || pending}>
+        {pending ? <Spinner /> : <LockIcon />}
+        {hasChanges ? `Submit & close Q${match.number}` : `Close Q${match.number}`}
+      </Button>
+    </SubmitBar>
+  )
+
   return (
     <ScoutShell
       current={current}
       bar={
+        isLead ? leadBar : (
         <SubmitBar status={status}>
           {!confirmed && (
             <Button
@@ -301,8 +365,25 @@ function RankingForm({ current, match }: { current: CurrentScouting; match: Curr
             {submitLabel}
           </Button>
         </SubmitBar>
+        )
       }
     >
+      <AlertDialog open={confirmClose} onOpenChange={setConfirmClose}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Close match {match.number} anyway?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Still waiting on {waiting?.join(", ")}. Once closed, nobody can submit for this match.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="h-11 sm:h-8">Wait</AlertDialogCancel>
+            <AlertDialogAction variant="destructive" className="h-11 sm:h-8" onClick={() => void submitAndClose()}>
+              Close match
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       <p className="text-sm text-muted-foreground">
         Rank the teams from <span className="font-semibold text-foreground">1 (best)</span> to{" "}
         <span className="font-semibold text-foreground">6 (worst)</span>. Hold and drag the handle, or use the arrows.

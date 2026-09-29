@@ -100,7 +100,64 @@ export function LeadTools({ current }: { current: CurrentScouting }) {
   )
 }
 
-function ScouterStatus({ match }: { match: CurrentMatch }) {
+/** Compact, expandable scouter status for the top of the lead's scouting page on phones. */
+export function LeadStatusStrip({ match }: { match: CurrentMatch }) {
+  const [open, setOpen] = useState(false)
+  const rows = useQuery(api.matchScouting.leadPanel, { matchId: match._id })
+  const now = useNow(1000)
+  if (rows === undefined) return <Skeleton className="h-14 w-full rounded-xl" />
+  const stats = statsFor(rows, now)
+  return (
+    <section className="flex flex-col gap-2 rounded-xl border bg-card p-3">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        className="flex min-h-11 items-center gap-3 text-left"
+      >
+        <span className="flex flex-1 flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+          <span>
+            <span className="font-semibold tabular-nums">{stats.active}</span> active
+          </span>
+          <span>
+            <span className="font-semibold tabular-nums">{stats.ranked}</span> ranked
+          </span>
+          <span>
+            <span className="font-semibold tabular-nums">{stats.noted}</span> with notes
+          </span>
+        </span>
+        <span className="text-sm text-muted-foreground">{open ? "Hide" : "Scouters"}</span>
+      </button>
+      {open && <ScouterStatus match={match} compact />}
+    </section>
+  )
+}
+
+/** Less-frequent lead controls: change the match number, edit manual teams. */
+export function LeadExtras({ current }: { current: CurrentScouting }) {
+  const match = current.match
+  return (
+    <div className="flex flex-col gap-5">
+      <ChangeMatchNumber currentNumber={current.matchNumber} />
+      {match?.source === "manual" && (
+        <>
+          <Separator />
+          <section className="flex flex-col gap-2">
+            <h3 className="text-sm font-semibold">Edit teams</h3>
+            <p className="text-xs text-muted-foreground">You can change the teams until someone submits a ranking.</p>
+            <ManualTeamsForm
+              key={`${match._id}:${[...match.red, ...match.blue].join(",")}`}
+              matchNumber={match.number}
+              match={match}
+            />
+          </section>
+        </>
+      )}
+    </div>
+  )
+}
+
+function ScouterStatus({ match, compact = false }: { match: CurrentMatch; compact?: boolean }) {
   const rows = useQuery(api.matchScouting.leadPanel, { matchId: match._id })
   const now = useNow(1000)
   const [showAll, setShowAll] = useState(false)
@@ -127,8 +184,12 @@ function ScouterStatus({ match }: { match: CurrentMatch }) {
 
   return (
     <section className="flex flex-col gap-3">
-      <h3 className="text-sm font-semibold">Scouters · match {match.number}</h3>
-      <StatsLine stats={statsFor(rows, now)} />
+      {!compact && (
+        <>
+          <h3 className="text-sm font-semibold">Scouters · match {match.number}</h3>
+          <StatsLine stats={statsFor(rows, now)} />
+        </>
+      )}
       {visible.length === 0 ? (
         <p className="text-sm text-muted-foreground">Nobody is scouting this match yet.</p>
       ) : (
