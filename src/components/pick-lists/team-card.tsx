@@ -68,25 +68,25 @@ export function TeamCardView({
           selected && "opacity-40",
         )}
       >
-        <span className="flex w-full items-baseline gap-2">
+        <span className="flex w-full min-w-0 items-baseline gap-2">
           <span
             className={cn(
-              "text-base font-bold tabular-nums underline-offset-4 group-hover/team:underline",
+              "shrink-0 text-base font-bold tabular-nums underline-offset-4 group-hover/team:underline",
               selected && "line-through",
             )}
           >
             {teamNumber}
           </span>
-          <span className="ml-auto shrink-0 pr-1 text-xs text-muted-foreground tabular-nums">
-            Avg {formatRank(avgRank)}
-            {delta !== null && (
-              <span className={cn("ml-1.5 font-semibold", deltaClass(delta))} title="Our rank vs OPR position">
-                {formatDelta(delta)}
-              </span>
-            )}
-          </span>
+          <span className="min-w-0 truncate text-xs text-muted-foreground">{nickname || "—"}</span>
         </span>
-        <span className="w-full truncate text-xs text-muted-foreground">{nickname || "—"}</span>
+        <span className="text-xs text-muted-foreground tabular-nums">
+          Avg {formatRank(avgRank)}
+          {delta !== null && (
+            <span className={cn("ml-1.5 font-semibold", deltaClass(delta))} title="Our rank vs OPR position">
+              {formatDelta(delta)}
+            </span>
+          )}
+        </span>
       </TeamLink>
       <div className="flex shrink-0 items-center pr-1">
         {onToggleSelected && (
