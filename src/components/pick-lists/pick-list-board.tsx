@@ -237,7 +237,8 @@ export function PickListBoard({
       >
         <div
           className={cn(
-            "-mx-4 grid snap-x scroll-px-4 auto-cols-[minmax(min(82vw,17rem),1fr)] grid-flow-col gap-3 overflow-x-auto px-4 pb-2 sm:-mx-6 sm:scroll-px-6 sm:px-6",
+            // Fixed-height board (fills the screen) so each column scrolls on its own.
+            "-mx-4 grid h-[max(22rem,calc(100svh-9rem))] snap-x scroll-px-4 auto-cols-[minmax(min(82vw,17rem),1fr)] grid-flow-col gap-3 overflow-x-auto px-4 pb-2 sm:-mx-6 sm:scroll-px-6 sm:px-6",
             activeTeam === null && "snap-mandatory",
           )}
         >
@@ -296,7 +297,7 @@ function BoardColumn({
       ref={sectionRef}
       aria-labelledby={labelId}
       className={cn(
-        "flex min-w-0 snap-start flex-col rounded-xl border-t-4 bg-muted/50 ring-1 ring-foreground/5 dark:bg-muted/30",
+        "flex min-h-0 min-w-0 snap-start flex-col rounded-xl border-t-4 bg-muted/50 ring-1 ring-foreground/5 dark:bg-muted/30",
         COLUMN_ACCENT[column],
       )}
     >
@@ -312,7 +313,7 @@ function BoardColumn({
         <ul
           ref={setNodeRef}
           className={cn(
-            "flex min-h-28 flex-1 flex-col gap-2 rounded-b-xl p-2 transition-colors",
+            "flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto overscroll-contain rounded-b-xl p-2 transition-colors",
             isOver && "bg-primary/5",
           )}
         >
