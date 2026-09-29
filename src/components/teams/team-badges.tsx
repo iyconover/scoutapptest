@@ -9,12 +9,12 @@ export function PitBadge({ scouted }: { scouted: boolean }) {
   return scouted ? (
     <Badge className="gap-1 bg-emerald-600/15 text-emerald-700 dark:bg-emerald-400/15 dark:text-emerald-300">
       <CheckIcon />
-      Scouted
+      Pit scouted
     </Badge>
   ) : (
     <Badge variant="outline" className="gap-1 text-muted-foreground">
       <CircleDashedIcon />
-      Not Scouted
+      Not pit scouted
     </Badge>
   )
 }
