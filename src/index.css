@@ -126,5 +126,8 @@
     }
   html {
     @apply font-sans;
+    /* Safety net: nothing may make the page scroll sideways on phones. `clip` (not `hidden`)
+       keeps position: sticky working. */
+    overflow-x: clip;
     }
 }

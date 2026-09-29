@@ -324,7 +324,7 @@ function RankingForm({ current, match }: { current: CurrentScouting; match: Curr
     <SubmitBar status={status}>
       {!confirmed ? (
         <Button variant="outline" className="h-12 flex-1 text-base" onClick={() => setOrder(matchId, order)} disabled={pending}>
-          <CheckIcon /> This order is correct
+          <CheckIcon /> Order is correct
         </Button>
       ) : (
         hasChanges && (
@@ -335,7 +335,7 @@ function RankingForm({ current, match }: { current: CurrentScouting; match: Curr
       )}
       <Button className="h-12 flex-1 text-base" onClick={onLeadFinish} disabled={!confirmed || pending}>
         {pending ? <Spinner /> : <LockIcon />}
-        {hasChanges ? `Submit & close Q${match.number}` : `Close Q${match.number}`}
+        {hasChanges ? "Submit & close" : `Close Q${match.number}`}
       </Button>
     </SubmitBar>
   )
