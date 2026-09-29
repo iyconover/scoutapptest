@@ -78,7 +78,8 @@ function BoardSearch({
 
   const q = value.trim()
   return (
-    <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+    // Pinned just under the app header (h-14) while the page scrolls.
+    <div className="sticky top-14 z-20 -mx-4 flex flex-wrap items-center gap-x-3 gap-y-1 bg-background/95 px-4 py-2 backdrop-blur sm:-mx-6 sm:px-6">
       <div className="relative w-full sm:w-72">
         <SearchIcon className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
         <Input
