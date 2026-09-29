@@ -10,6 +10,8 @@ import {
 import type { ReactNode } from "react"
 
 import { TeamLink } from "@/components/team-link"
+import { deltaClass, formatDelta } from "@/components/teams/team-sort"
+import { useTeamDeltas } from "@/components/teams/use-team-deltas"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -45,6 +47,7 @@ export function TeamCardView({
   overlay?: boolean
 }) {
   const { teamNumber, nickname, avgRank, selected, column } = entry
+  const delta = useTeamDeltas().get(teamNumber)?.delta ?? null
   return (
     <div
       className={cn(
@@ -72,6 +75,11 @@ export function TeamCardView({
           </span>
           <span className="ml-auto shrink-0 pr-1 text-xs text-muted-foreground tabular-nums">
             Avg {formatRank(avgRank)}
+            {delta !== null && (
+              <span className={cn("ml-1.5 font-semibold", deltaClass(delta))} title="Our rank vs OPR position">
+                {formatDelta(delta)}
+              </span>
+            )}
           </span>
         </span>
         <span className="w-full truncate text-xs text-muted-foreground">{nickname || "—"}</span>
