@@ -9,10 +9,8 @@ import { TeamList } from "@/components/teams/team-list"
 import {
   SORT_KEYS,
   SORT_LABELS,
-  allRanked,
   comparePositions,
   matchesSearch,
-  resolveSort,
   sortTeams,
   type SortKey,
 } from "@/components/teams/team-sort"
@@ -38,7 +36,7 @@ type ListChoice = Id<"pickLists"> | "primary"
 
 export function TeamsRoute() {
   const event = useQuery(api.events.active)
-  const [sort, setSort] = useState<SortKey>("auto")
+  const [sort, setSort] = useState<SortKey>("number")
   const [listChoice, setListChoice] = useState<ListChoice>("primary")
   const [search, setSearch] = useState("")
   const [compare, setCompare] = useState(false)
@@ -62,7 +60,7 @@ export function TeamsRoute() {
     sort === "tier" && effectiveList !== "primary" ? { tierListId: effectiveList } : {},
   )
 
-  const concreteSort = teams ? resolveSort(sort, teams) : "number"
+  const concreteSort = sort
   const positions = useMemo(() => comparePositions(teams ?? []), [teams])
   const visible = useMemo(
     () => (teams ? sortTeams(teams, concreteSort).filter((t) => matchesSearch(t, search)) : undefined),
@@ -80,13 +78,6 @@ export function TeamsRoute() {
 
   const rankedCount = teams?.filter((t) => t.matchesRanked >= 1).length ?? 0
   const hints: string[] = []
-  if (teams && teams.length > 0 && sort === "auto") {
-    hints.push(
-      allRanked(teams)
-        ? "Auto: sorted by our average ranking (best first)."
-        : `Auto: sorted by team number until every team has a ranked match (${rankedCount}/${teams.length}).`,
-    )
-  }
   if (compare) hints.push("▲ = we rate a team higher than OPR does, ▼ = lower.")
   const hint: ReactNode = hints.length > 0 ? hints.join(" ") : null
 

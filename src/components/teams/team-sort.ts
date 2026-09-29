@@ -5,17 +5,15 @@ import { COLUMNS, type Column } from "../../../convex/lib/validators"
 
 export type TeamRow = FunctionReturnType<typeof api.teams.list>[number]
 
-export type SortKey = "auto" | "number" | "ourRank" | "opr" | "tier"
-export type ConcreteSort = Exclude<SortKey, "auto">
+export type SortKey = "number" | "ourRank" | "opr" | "tier"
 
 export const SORT_LABELS: Record<SortKey, string> = {
-  auto: "Auto",
   number: "Team number",
   ourRank: "Our ranking",
   opr: "OPR",
   tier: "Pick list order",
 }
-export const SORT_KEYS: readonly SortKey[] = ["auto", "number", "ourRank", "opr", "tier"]
+export const SORT_KEYS: readonly SortKey[] = ["number", "ourRank", "opr", "tier"]
 
 type Cmp = (a: TeamRow, b: TeamRow) => number
 
@@ -37,25 +35,14 @@ const byOpr: Cmp = (a, b) => nullsLast(a.opr, b.opr, -1) || byNumber(a, b)
 const byTier: Cmp = (a, b) =>
   nullsLast(tierIndex(a.tier), tierIndex(b.tier), 1) || nullsLast(a.tierOrder, b.tierOrder, 1) || byNumber(a, b)
 
-const COMPARATORS: Record<ConcreteSort, Cmp> = {
+const COMPARATORS: Record<SortKey, Cmp> = {
   number: byNumber,
   ourRank: byOurRank,
   opr: byOpr,
   tier: byTier,
 }
 
-/** Every team has at least one ranked match. */
-export function allRanked(teams: readonly TeamRow[]): boolean {
-  return teams.length > 0 && teams.every((t) => t.matchesRanked >= 1)
-}
-
-/** "Auto" = team number until every team has been ranked at least once, then our ranking. */
-export function resolveSort(sort: SortKey, teams: readonly TeamRow[]): ConcreteSort {
-  if (sort !== "auto") return sort
-  return allRanked(teams) ? "ourRank" : "number"
-}
-
-export function sortTeams(teams: readonly TeamRow[], sort: ConcreteSort): TeamRow[] {
+export function sortTeams(teams: readonly TeamRow[], sort: SortKey): TeamRow[] {
   return [...teams].sort(COMPARATORS[sort])
 }
 
