@@ -13,7 +13,7 @@ export const SORT_LABELS: Record<SortKey, string> = {
   number: "Team number",
   ourRank: "Our ranking",
   opr: "OPR",
-  tier: "Pick list tier",
+  tier: "Pick list order",
 }
 export const SORT_KEYS: readonly SortKey[] = ["auto", "number", "ourRank", "opr", "tier"]
 
@@ -33,7 +33,9 @@ const byNumber: Cmp = (a, b) => a.number - b.number
 /** avgRank: 1 is best, so ascending. */
 const byOurRank: Cmp = (a, b) => nullsLast(a.avgRank, b.avgRank, 1) || byNumber(a, b)
 const byOpr: Cmp = (a, b) => nullsLast(a.opr, b.opr, -1) || byNumber(a, b)
-const byTier: Cmp = (a, b) => nullsLast(tierIndex(a.tier), tierIndex(b.tier), 1) || byOurRank(a, b)
+/** Exactly as the pick list board shows it: column order, then position within the column. */
+const byTier: Cmp = (a, b) =>
+  nullsLast(tierIndex(a.tier), tierIndex(b.tier), 1) || nullsLast(a.tierOrder, b.tierOrder, 1) || byNumber(a, b)
 
 const COMPARATORS: Record<ConcreteSort, Cmp> = {
   number: byNumber,

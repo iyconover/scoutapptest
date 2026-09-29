@@ -7,16 +7,29 @@ import { useOpenTeam } from "@/hooks/use-open-team"
 import { formatOpr, formatRank } from "@/lib/format"
 
 /** Team list: cards on phones, a table on desktop. Tapping a team opens its detail modal. */
-export function TeamList({ teams, showTier }: { teams: TeamRow[]; showTier: boolean }) {
+export function TeamList({
+  teams,
+  showTier,
+  primary,
+}: {
+  teams: TeamRow[]
+  showTier: boolean
+  /** Which metric the phone cards show large (the one being sorted by). */
+  primary: "rank" | "opr"
+}) {
   const isDesktop = useIsDesktop()
-  return isDesktop ? <TeamTable teams={teams} showTier={showTier} /> : <TeamCards teams={teams} showTier={showTier} />
+  return isDesktop ? (
+    <TeamTable teams={teams} showTier={showTier} />
+  ) : (
+    <TeamCards teams={teams} showTier={showTier} primary={primary} />
+  )
 }
 
 function reports(n: number) {
   return `${n} ${n === 1 ? "report" : "reports"}`
 }
 
-function TeamCards({ teams, showTier }: { teams: TeamRow[]; showTier: boolean }) {
+function TeamCards({ teams, showTier, primary }: { teams: TeamRow[]; showTier: boolean; primary: "rank" | "opr" }) {
   const openTeam = useOpenTeam()
   return (
     <ul className="flex flex-col gap-2">
@@ -37,9 +50,19 @@ function TeamCards({ teams, showTier }: { teams: TeamRow[]; showTier: boolean })
               </span>
             </span>
             <span className="flex shrink-0 flex-col items-end">
-              <span className="text-lg font-semibold tabular-nums">{formatRank(t.avgRank)}</span>
-              <span className="text-[11px] text-muted-foreground">our avg</span>
-              <span className="text-[11px] text-muted-foreground tabular-nums">OPR {formatOpr(t.opr)}</span>
+              {primary === "opr" ? (
+                <>
+                  <span className="text-lg font-semibold tabular-nums">{formatOpr(t.opr)}</span>
+                  <span className="text-[11px] text-muted-foreground">OPR</span>
+                  <span className="text-[11px] text-muted-foreground tabular-nums">avg {formatRank(t.avgRank)}</span>
+                </>
+              ) : (
+                <>
+                  <span className="text-lg font-semibold tabular-nums">{formatRank(t.avgRank)}</span>
+                  <span className="text-[11px] text-muted-foreground">our avg</span>
+                  <span className="text-[11px] text-muted-foreground tabular-nums">OPR {formatOpr(t.opr)}</span>
+                </>
+              )}
             </span>
           </button>
         </li>

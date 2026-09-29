@@ -175,7 +175,7 @@ export function TeamsRoute() {
       ) : compare ? (
         <TeamCompare teams={visible} positions={positions} />
       ) : (
-        <TeamList teams={visible} showTier={concreteSort === "tier"} />
+        <TeamList teams={visible} showTier={concreteSort === "tier"} primary={concreteSort === "opr" ? "opr" : "rank"} />
       )}
     </PageContainer>
   )

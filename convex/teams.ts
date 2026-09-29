@@ -15,13 +15,17 @@ async function primaryListId(ctx: QueryCtx, eventId: Id<"events">) {
   return list?._id ?? null
 }
 
-async function columnsFor(ctx: QueryCtx, listId: Id<"pickLists"> | null) {
-  if (listId === null) return new Map<number, Column>()
-  const entries = await ctx.db
+async function entriesFor(ctx: QueryCtx, listId: Id<"pickLists"> | null) {
+  if (listId === null) return []
+  return await ctx.db
     .query("pickListEntries")
     .withIndex("by_list_team", (q) => q.eq("listId", listId))
     .collect()
-  return new Map(entries.map((e) => [e.teamNumber, e.column]))
+}
+
+async function columnsFor(ctx: QueryCtx, listId: Id<"pickLists"> | null) {
+  const entries = await entriesFor(ctx, listId)
+  return new Map<number, Column>(entries.map((e) => [e.teamNumber, e.column]))
 }
 
 export const list = query({
@@ -37,6 +41,8 @@ export const list = query({
       opr: v.union(v.number(), v.null()),
       eventRank: v.union(v.number(), v.null()),
       tier: v.union(columnV, v.null()),
+      /** Position within `tier` on that pick list (fractional; ascending = higher on the list). */
+      tierOrder: v.union(v.number(), v.null()),
     }),
   ),
   handler: async (ctx, args) => {
@@ -64,7 +70,9 @@ export const list = query({
       const chosen = await ctx.db.get(listId)
       if (chosen === null || chosen.eventId !== eventId) listId = null
     }
-    const tiers = await columnsFor(ctx, listId ?? (await primaryListId(ctx, eventId)))
+    const tiers = new Map(
+      (await entriesFor(ctx, listId ?? (await primaryListId(ctx, eventId)))).map((e) => [e.teamNumber, e]),
+    )
 
     const aggBy = new Map(aggregates.map((a) => [a.teamNumber, a]))
     const insightBy = new Map(insights.map((i) => [i.teamNumber, i]))
@@ -82,7 +90,8 @@ export const list = query({
         matchesRanked: agg?.matchesRanked ?? 0,
         opr: insight?.opr ?? null,
         eventRank: insight?.rank ?? null,
-        tier: tiers.get(t.number) ?? null,
+        tier: tiers.get(t.number)?.column ?? null,
+        tierOrder: tiers.get(t.number)?.order ?? null,
       }
     })
   },

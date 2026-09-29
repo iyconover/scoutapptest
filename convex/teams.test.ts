@@ -103,6 +103,7 @@ describe("teams.list", () => {
       opr: 25.5,
       eventRank: 3,
       tier: "tier1",
+      tierOrder: 1,
     })
     expect(rows[7]).toEqual({
       number: 8,
@@ -114,6 +115,7 @@ describe("teams.list", () => {
       opr: null,
       eventRank: null,
       tier: "uncategorized",
+      tierOrder: 8,
     })
     const mine = await s1.as.query(api.teams.list, { tierListId: s1ListId })
     expect(mine[0].tier).toBe("dnp")
