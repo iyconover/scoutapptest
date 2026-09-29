@@ -54,6 +54,7 @@ export const current = query({
           blue: v.array(v.number()),
           closed: v.boolean(),
           source: v.union(v.literal("tba"), v.literal("manual")),
+          nicknames: v.array(v.object({ teamNumber: v.number(), nickname: v.string() })),
         }),
       ),
       myRole: scoutingRoleV,
@@ -94,6 +95,7 @@ export const current = query({
         .withIndex("by_match_author_team", (q) => q.eq("matchId", match._id).eq("authorId", userId))
         .collect()
     ).map((n) => ({ teamNumber: n.teamNumber, text: n.text }))
+    const nicknameBy = new Map((await listTeams(ctx, event._id)).map((t) => [t.number, t.nickname]))
 
     return {
       matchNumber: event.currentMatchNumber,
@@ -104,6 +106,10 @@ export const current = query({
         blue: match.blue,
         closed: match.closed,
         source: match.source,
+        nicknames: matchTeams(match).map((teamNumber) => ({
+          teamNumber,
+          nickname: nicknameBy.get(teamNumber) ?? "",
+        })),
       },
       myRole: roleFor(event, userId, assigned.length),
       myAssignments: assigned.map((a) => ({

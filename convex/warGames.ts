@@ -128,7 +128,8 @@ export const list = query({
 })
 
 export const get = query({
-  args: { warGameId: v.id("warGames") },
+  /** A plain string so a malformed id from the URL returns null instead of throwing. */
+  args: { warGameId: v.string() },
   returns: v.union(
     v.null(),
     v.object({
@@ -179,7 +180,8 @@ export const get = query({
     const caller = await requireUser(ctx)
     const event = await getActiveEvent(ctx)
     if (event === null) return null
-    const wg = await ctx.db.get(args.warGameId)
+    const warGameId = ctx.db.normalizeId("warGames", args.warGameId)
+    const wg = warGameId ? await ctx.db.get(warGameId) : null
     if (wg === null || wg.eventId !== event._id) return null
 
     const { stats, predictions, standings } = await evaluate(ctx, wg)

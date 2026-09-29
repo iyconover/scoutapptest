@@ -7,7 +7,8 @@ import schema from "./schema"
 
 const modules = import.meta.glob("./**/*.ts")
 
-type T = ReturnType<typeof convexTest>
+const newTest = () => convexTest(schema, modules)
+type T = ReturnType<typeof newTest>
 
 async function newUser(t: T, email: string, profile = true) {
   const userId = await t.run((ctx) => ctx.db.insert("users", { email }))

@@ -6,7 +6,7 @@ import { fillListEntries } from "./lib/aggregates"
 import { displayNames, requireUser, type Caller } from "./lib/auth"
 import { mergePickLists } from "./lib/consensus"
 import { appError } from "./lib/errors"
-import { getActiveEvent, listTeams, requireActiveEvent } from "./lib/event"
+import { getActiveEvent, listTeams, requireActiveEvent, requireTeam } from "./lib/event"
 import { personalAverages } from "./lib/ranking"
 import { tierForAverage } from "./lib/tiers"
 import { COLUMNS, columnV, listKindV, type Column } from "./lib/validators"
@@ -115,7 +115,8 @@ export const overview = query({
 })
 
 export const get = query({
-  args: { listId: v.id("pickLists") },
+  /** A plain string so a malformed id from the URL returns null instead of throwing. */
+  args: { listId: v.string() },
   returns: v.union(
     v.null(),
     v.object({
@@ -136,7 +137,8 @@ export const get = query({
     const caller = await requireUser(ctx)
     const event = await getActiveEvent(ctx)
     if (event === null) return null
-    const list = await ctx.db.get(args.listId)
+    const listId = ctx.db.normalizeId("pickLists", args.listId)
+    const list = listId ? await ctx.db.get(listId) : null
     if (list === null || list.eventId !== event._id) return null
 
     const teams = new Map((await listTeams(ctx, event._id)).map((t) => [t.number, t.nickname]))
@@ -340,6 +342,7 @@ export const setSelected = mutation({
   handler: async (ctx, args) => {
     const { userId } = await requireUser(ctx)
     const event = await requireActiveEvent(ctx)
+    await requireTeam(ctx, event._id, args.teamNumber)
     const existing = await ctx.db
       .query("selectedTeams")
       .withIndex("by_event_team", (q) => q.eq("eventId", event._id).eq("teamNumber", args.teamNumber))
