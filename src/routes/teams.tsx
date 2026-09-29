@@ -1,10 +1,10 @@
 import { PageContainer, PageHeader } from "@/components/page-header"
 
 /** Placeholder — replaced by its owning agent. */
-export function HomeRoute() {
+export function TeamsRoute() {
   return (
     <PageContainer>
-      <PageHeader title="Home" description="Coming soon." />
+      <PageHeader title="Teams" description="Coming soon." />
     </PageContainer>
   )
 }

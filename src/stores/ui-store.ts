@@ -6,13 +6,11 @@ import { create } from "zustand"
  * read those with `useQuery` so they stay live.
  */
 interface UIState {
-  sidebarOpen: boolean
-  setSidebarOpen: (open: boolean) => void
-  toggleSidebar: () => void
+  mobileNavOpen: boolean
+  setMobileNavOpen: (open: boolean) => void
 }
 
 export const useUIStore = create<UIState>()((set) => ({
-  sidebarOpen: true,
-  setSidebarOpen: (sidebarOpen) => set({ sidebarOpen }),
-  toggleSidebar: () => set((state) => ({ sidebarOpen: !state.sidebarOpen })),
+  mobileNavOpen: false,
+  setMobileNavOpen: (mobileNavOpen) => set({ mobileNavOpen }),
 }))

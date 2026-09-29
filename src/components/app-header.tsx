@@ -3,6 +3,7 @@ import { useConvexAuth } from "convex/react"
 import { LogOutIcon } from "lucide-react"
 import { Link } from "react-router"
 
+import { DesktopNav, MobileNav } from "@/components/app-nav"
 import { ModeToggle } from "@/components/mode-toggle"
 import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
@@ -12,11 +13,13 @@ export function AppHeader() {
   const { signOut } = useAuthActions()
 
   return (
-    <header className="flex h-14 items-center justify-between border-b px-4">
-      <Link to="/" className="font-heading font-semibold">
-        scoutapptest
+    <header className="sticky top-0 z-40 flex h-14 items-center gap-2 border-b bg-background/95 px-3 backdrop-blur sm:px-4">
+      {isAuthenticated && <MobileNav />}
+      <Link to="/" className="mr-2 font-heading font-semibold">
+        Scout
       </Link>
-      <div className="flex items-center gap-1">
+      {isAuthenticated && <DesktopNav />}
+      <div className="ml-auto flex items-center gap-1">
         <ModeToggle />
         {isAuthenticated && (
           <Tooltip>
