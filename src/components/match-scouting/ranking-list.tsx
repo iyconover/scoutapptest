@@ -157,7 +157,7 @@ function RankCard({
           </div>
           <div className="flex min-w-0 flex-1 flex-col gap-1">
             <div className="flex items-center gap-2">
-              <div className="flex min-w-0 flex-1 items-baseline gap-2">
+              <div className="flex min-w-0 flex-1 items-center gap-2">
                 <span className="font-heading text-2xl font-semibold text-foreground tabular-nums">
                   {slot.teamNumber}
                 </span>
