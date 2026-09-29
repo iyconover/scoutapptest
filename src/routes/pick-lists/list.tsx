@@ -1,5 +1,6 @@
 import { useQuery } from "convex/react"
-import { ArrowLeftIcon, EyeIcon, SearchXIcon } from "lucide-react"
+import { ArrowLeftIcon, EyeIcon, SearchIcon, SearchXIcon } from "lucide-react"
+import { useEffect, useMemo, useState } from "react"
 import { Link, useParams } from "react-router"
 
 import { NoEvent } from "@/components/no-event"
@@ -7,7 +8,9 @@ import { PageContainer, PageHeader } from "@/components/page-header"
 import { listOwnerLabel, plural } from "@/components/pick-lists/board-utils"
 import { ListMenu, ListSwitcher, RefreshFromRankingsButton } from "@/components/pick-lists/list-actions"
 import { MergeDialog } from "@/components/pick-lists/merge-dialog"
+import { HighlightContext, matchTeams } from "@/components/pick-lists/highlight"
 import { PickListBoard } from "@/components/pick-lists/pick-list-board"
+import { Input } from "@/components/ui/input"
 import { QueryErrorBoundary } from "@/components/pick-lists/query-error-boundary"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -52,6 +55,51 @@ function ListNotFound() {
   )
 }
 
+/** Search box that highlights matching cards and scrolls the first one into view. */
+function BoardSearch({
+  entries,
+  value,
+  onChange,
+  matches,
+}: {
+  entries: readonly { teamNumber: number; column: string; order: number }[]
+  value: string
+  onChange: (value: string) => void
+  matches: ReadonlySet<number>
+}) {
+  // First match in board order (entries are already sorted by column, then position).
+  const first = entries.find((e) => matches.has(e.teamNumber))?.teamNumber
+  useEffect(() => {
+    if (first === undefined) return
+    document
+      .querySelector(`[data-team="${first}"]`)
+      ?.scrollIntoView({ behavior: "smooth", block: "center", inline: "center" })
+  }, [first])
+
+  const q = value.trim()
+  return (
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+      <div className="relative w-full sm:w-72">
+        <SearchIcon className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          type="search"
+          inputMode="search"
+          placeholder="Find a team on this list"
+          aria-label="Find a team on this list"
+          className="h-11 pl-9 md:h-9"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+        />
+      </div>
+      {q !== "" && (
+        <span className="text-sm text-muted-foreground" aria-live="polite">
+          {matches.size === 0 ? "No match" : matches.size === 1 ? "1 match" : `${matches.size} matches`}
+        </span>
+      )}
+    </div>
+  )
+}
+
 function BoardSkeleton() {
   return (
     <PageContainer wide>
@@ -88,6 +136,8 @@ function PickListPage({ listId }: { listId: Id<"pickLists"> }) {
   const event = useQuery(api.events.active)
   const data = useQuery(api.pickLists.get, { listId })
   const overview = useQuery(api.pickLists.overview)
+  const [search, setSearch] = useState("")
+  const matches = useMemo(() => matchTeams(data?.entries ?? [], search), [data?.entries, search])
 
   if (event === null) {
     return (
@@ -155,7 +205,12 @@ function PickListPage({ listId }: { listId: Id<"pickLists"> }) {
           </EmptyHeader>
         </Empty>
       ) : (
-        <PickListBoard listId={list._id} entries={entries} canEdit={list.canEdit} />
+        <>
+          <BoardSearch entries={entries} value={search} onChange={setSearch} matches={matches} />
+          <HighlightContext.Provider value={matches}>
+            <PickListBoard listId={list._id} entries={entries} canEdit={list.canEdit} />
+          </HighlightContext.Provider>
+        </>
       )}
     </PageContainer>
   )

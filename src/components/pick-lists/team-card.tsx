@@ -27,6 +27,7 @@ import { formatRank } from "@/lib/format"
 import { cn } from "@/lib/utils"
 import { COLUMN_LABELS, COLUMNS, type Column } from "../../../convex/lib/validators"
 import type { PickListEntry } from "./board-utils"
+import { useIsHighlighted } from "./highlight"
 
 export type CardMoveTarget = { column: Column; position: "top" | "bottom" }
 
@@ -48,11 +49,14 @@ export function TeamCardView({
 }) {
   const { teamNumber, nickname, avgRank, selected, column } = entry
   const delta = useTeamDeltas().get(teamNumber)?.delta ?? null
+  const highlighted = useIsHighlighted(teamNumber) && !overlay
   return (
     <div
+      data-team={overlay ? undefined : teamNumber}
       className={cn(
-        "flex items-stretch rounded-lg bg-card text-card-foreground ring-1 ring-foreground/10",
+        "flex items-stretch rounded-lg bg-card text-card-foreground ring-1 ring-foreground/10 transition-shadow",
         overlay ? "cursor-grabbing shadow-lg ring-2 ring-ring/50" : "shadow-xs",
+        highlighted && "bg-primary/10 ring-2 ring-primary",
       )}
     >
       {handle}
