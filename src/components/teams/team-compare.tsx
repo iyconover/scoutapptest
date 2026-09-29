@@ -21,7 +21,7 @@ function byPosition(teams: TeamRow[], position: (t: TeamRow) => number | null) {
 
 /**
  * Two lists side by side: teams ordered by our ranking and by OPR.
- * Delta (▲ = we rate them higher than OPR does) shows on both sides.
+ * Delta (▲ = we rate them higher than OPR does) shows on our-ranking side only.
  * Hovering or focusing a team highlights it in both lists.
  */
 export function TeamCompare({
@@ -53,7 +53,6 @@ export function TeamCompare({
         rows={opr}
         position={(t) => get(t).opr}
         value={(t) => formatOpr(t.opr)}
-        delta={(t) => get(t).delta}
         active={active}
         onActive={setActive}
       />
@@ -74,7 +73,7 @@ function CompareColumn({
   rows: TeamRow[]
   position: (t: TeamRow) => number | null
   value: (t: TeamRow) => string
-  delta: (t: TeamRow) => number | null
+  delta?: (t: TeamRow) => number | null
   active: number | null
   onActive: (team: number | null) => void
 }) {
@@ -85,7 +84,7 @@ function CompareColumn({
       <ol className="flex flex-col gap-1.5" onMouseLeave={() => onActive(null)}>
         {rows.map((t) => {
           const p = position(t)
-          const d = delta(t)
+          const d = delta?.(t)
           return (
             <li key={t.number}>
               <button
@@ -108,7 +107,9 @@ function CompareColumn({
                 </span>
                 <span className="flex shrink-0 flex-col items-end leading-tight">
                   <span className="text-sm tabular-nums">{value(t)}</span>
-                  <span className={cn("text-xs font-semibold tabular-nums", deltaClass(d))}>{formatDelta(d)}</span>
+                  {d !== undefined && (
+                    <span className={cn("text-xs font-semibold tabular-nums", deltaClass(d))}>{formatDelta(d)}</span>
+                  )}
                 </span>
               </button>
             </li>
