@@ -53,25 +53,3 @@ export function applyDrop(
   targetRow.slots[target.slot] = team
   return next
 }
-
-/** Every unlocked slot emptied, or null if there is nothing to clear. */
-export function clearUnlocked(alliances: readonly Alliance[]): Alliance[] | null {
-  let changed = false
-  const next = alliances.map((a) => ({
-    locked: [...a.locked],
-    slots: a.slots.map((t, s) => {
-      if (a.locked[s] || t === null) return t
-      changed = true
-      return null
-    }),
-  }))
-  return changed ? next : null
-}
-
-/** Manual order limited to known teams, with missing ones appended in predicted-rank order. */
-export function fullManualOrder(manualOrder: readonly number[], teamsByPredictedRank: readonly number[]): number[] {
-  const known = new Set(teamsByPredictedRank)
-  const order = [...new Set(manualOrder)].filter((t) => known.has(t))
-  const listed = new Set(order)
-  return [...order, ...teamsByPredictedRank.filter((t) => !listed.has(t))]
-}

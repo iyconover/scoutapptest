@@ -121,3 +121,24 @@ export function draftAlliances(input: DraftInput): Alliance[] {
 
   return slots.map((row, a) => ({ slots: [...row], locked: [...locked[a]] }))
 }
+
+/**
+ * Re-seed every unlocked captain slot from `seedOrder`, keeping all picks and locked slots.
+ * Teams already placed as a pick or a locked captain are skipped, so a seed that was
+ * picked leaves the captain line and the next seed moves up.
+ */
+export function refreshCaptains(alliances: readonly Alliance[], seedOrder: readonly number[]): Alliance[] {
+  const taken = new Set<number>()
+  for (const a of alliances) {
+    a.slots.forEach((team, s) => {
+      if (team !== null && (s !== CAPTAIN || a.locked[s])) taken.add(team)
+    })
+  }
+  const seeds = seedOrder.filter((t) => !taken.has(t))
+  let next = 0
+  return alliances.map((a) => {
+    const slots = [...a.slots]
+    if (!a.locked[CAPTAIN]) slots[CAPTAIN] = seeds[next++] ?? null
+    return { slots, locked: [...a.locked] }
+  })
+}

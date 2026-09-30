@@ -2,7 +2,7 @@ import { v } from "convex/values"
 
 import type { Doc, Id } from "./_generated/dataModel"
 import { mutation, query, type QueryCtx } from "./_generated/server"
-import { draftAlliances } from "./lib/allianceDraft"
+import { draftAlliances, refreshCaptains } from "./lib/allianceDraft"
 import { displayNames, requireUser, type Caller } from "./lib/auth"
 import { ALLIANCE_COUNT, ALLIANCE_SIZE, DEFAULT_TIE_RP, DEFAULT_WIN_RP } from "./lib/constants"
 import { appError } from "./lib/errors"
@@ -67,7 +67,21 @@ async function evaluate(ctx: QueryCtx, wg: Doc<"warGames">) {
     }
   })
   const standings = predictStandings([...stats.values()], predictions)
-  return { stats, predictions, standings }
+  return { stats, predictions, standings, seedOrder: seedOrderFor([...stats.values()], predictions.length, standings) }
+}
+
+/** Captain order: final event rankings once every qual is played, predicted standings before that. */
+function seedOrderFor(stats: readonly TeamStats[], unplayed: number, standings: readonly PredictedStanding[]) {
+  if (unplayed === 0 && stats.length > 0 && stats.every((s) => s.rank !== null)) {
+    return [...stats].sort((a, b) => a.rank! - b.rank! || a.teamNumber - b.teamNumber).map((s) => s.teamNumber)
+  }
+  return standings.map((s) => s.teamNumber)
+}
+
+/** Board with every unlocked pick emptied and unlocked captain slots filled by seed. Locked teams stay put. */
+async function captainsOnly(ctx: QueryCtx, wg: Doc<"warGames">) {
+  const { seedOrder } = await evaluate(ctx, wg)
+  return draftAlliances({ seedOrder, pickOrder: [], alliances: wg.alliances })
 }
 
 /** Desirability order for the auto draft. Unknown values fall back to predicted rank. */
@@ -184,7 +198,7 @@ export const get = query({
     const wg = warGameId ? await ctx.db.get(warGameId) : null
     if (wg === null || wg.eventId !== event._id) return null
 
-    const { stats, predictions, standings } = await evaluate(ctx, wg)
+    const { stats, predictions, standings, seedOrder } = await evaluate(ctx, wg)
     const nicknames = new Map((await listTeams(ctx, event._id)).map((t) => [t.number, t.nickname]))
     const names = await displayNames(ctx)
     return {
@@ -196,7 +210,8 @@ export const get = query({
         manualOrder: wg.manualOrder,
         winRP: wg.winRP,
         tieRP: wg.tieRP,
-        alliances: wg.alliances,
+        // Captains follow the current seeds; only locked captains are pinned.
+        alliances: refreshCaptains(wg.alliances, seedOrder),
       },
       predictions,
       standings,
@@ -235,7 +250,7 @@ export const create = mutation({
     const byRank = [...stats.values()].sort(
       (a, b) => (a.rank ?? Infinity) - (b.rank ?? Infinity) || a.teamNumber - b.teamNumber,
     )
-    return await ctx.db.insert("warGames", {
+    const id = await ctx.db.insert("warGames", {
       eventId: event._id,
       name: cleanName(args.name),
       createdBy: userId,
@@ -245,6 +260,9 @@ export const create = mutation({
       tieRP: DEFAULT_TIE_RP,
       alliances: emptyAlliances(),
     })
+    const wg = (await ctx.db.get(id))!
+    await ctx.db.patch(id, { alliances: await captainsOnly(ctx, wg) })
+    return id
   },
 })
 
@@ -328,8 +346,11 @@ export const updateSettings = mutation({
         throw appError("INVALID_ARGUMENT", "Manual order must list event teams once each.")
       }
     }
+    // Switching to manual starts the board over: captains by seed, every pick empty.
+    const alliances = args.method === "manual" && wg.method !== "manual" ? await captainsOnly(ctx, wg) : undefined
     await ctx.db.patch(wg._id, {
       ...(args.method !== undefined && { method: args.method }),
+      ...(alliances !== undefined && { alliances }),
       ...(args.winRP !== undefined && { winRP: args.winRP }),
       ...(args.tieRP !== undefined && { tieRP: args.tieRP }),
       ...(args.manualOrder !== undefined && { manualOrder: args.manualOrder }),
@@ -344,13 +365,24 @@ export const runDraft = mutation({
   returns: v.null(),
   handler: async (ctx, args) => {
     const { wg } = await requireWarGame(ctx, args.warGameId, true)
-    const { stats, standings } = await evaluate(ctx, wg)
+    const { stats, standings, seedOrder } = await evaluate(ctx, wg)
     const alliances = draftAlliances({
-      seedOrder: standings.map((s) => s.teamNumber),
+      seedOrder,
       pickOrder: pickOrderFor(wg.method, wg.manualOrder, standings, stats),
       alliances: wg.alliances,
     })
     await ctx.db.patch(wg._id, { alliances })
+    return null
+  },
+})
+
+/** Clear the board back to captains only; locked slots are kept. */
+export const clearBoard = mutation({
+  args: { warGameId: v.id("warGames") },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const { wg } = await requireWarGame(ctx, args.warGameId, true)
+    await ctx.db.patch(wg._id, { alliances: await captainsOnly(ctx, wg) })
     return null
   },
 })
@@ -369,7 +401,8 @@ export const setAlliances = mutation({
     const teams = new Set((await listTeams(ctx, wg.eventId)).map((t) => t.number))
     if (new Set(placed).size !== placed.length) throw appError("INVALID_ARGUMENT", "A team can only be placed once.")
     if (placed.some((t) => !teams.has(t))) throw appError("INVALID_ARGUMENT", "Unknown team on the board.")
-    await ctx.db.patch(wg._id, { alliances: args.alliances })
+    const { seedOrder } = await evaluate(ctx, wg)
+    await ctx.db.patch(wg._id, { alliances: refreshCaptains(args.alliances, seedOrder) })
     return null
   },
 })
@@ -383,7 +416,9 @@ export const toggleLock = mutation({
     if (!target || !Number.isInteger(args.slot) || args.slot < 0 || args.slot >= ALLIANCE_SIZE) {
       throw appError("INVALID_ARGUMENT", "No such alliance slot.")
     }
-    const alliances = wg.alliances.map((a, i) =>
+    // Lock what the board shows, so a captain is pinned as currently seeded.
+    const { seedOrder } = await evaluate(ctx, wg)
+    const alliances = refreshCaptains(wg.alliances, seedOrder).map((a, i) =>
       i === args.alliance ? { ...a, locked: a.locked.map((l, s) => (s === args.slot ? !l : l)) } : a,
     )
     await ctx.db.patch(wg._id, { alliances })

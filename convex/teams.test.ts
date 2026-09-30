@@ -102,6 +102,7 @@ describe("teams.list", () => {
       matchesRanked: 1,
       opr: 25.5,
       eventRank: 3,
+      matchesPlayed: 2,
       tier: "tier1",
       tierOrder: 1,
     })
@@ -114,6 +115,7 @@ describe("teams.list", () => {
       matchesRanked: 0,
       opr: null,
       eventRank: null,
+      matchesPlayed: 0,
       tier: "uncategorized",
       tierOrder: 8,
     })

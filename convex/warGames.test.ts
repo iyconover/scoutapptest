@@ -54,7 +54,7 @@ const emptyAlliance = () => ({ slots: [null, null, null] as (number | null)[], l
 const emptyBoard = () => Array.from({ length: 8 }, emptyAlliance)
 
 describe("warGames.create / get / list", () => {
-  test("create seeds 8 empty alliances and defaults; get has the documented shape", async () => {
+  test("create seeds captains by predicted rank with empty picks; get has the documented shape", async () => {
     const { s1, matchIds } = await setup()
     const id = await s1.as.mutation(api.warGames.create, { name: "Scenario A" })
     const res = await s1.as.query(api.warGames.get, { warGameId: id })
@@ -65,9 +65,11 @@ describe("warGames.create / get / list", () => {
       method: "ourRank",
       winRP: 3,
       tieRP: 1,
-      alliances: emptyBoard(),
     })
-    expect(res?.scenario.alliances).toHaveLength(8)
+    const seeds = res!.standings.slice(0, 8).map((s) => s.teamNumber)
+    expect(res?.scenario.alliances).toEqual(
+      seeds.map((captain) => ({ slots: [captain, null, null], locked: [false, false, false] })),
+    )
     expect(res?.canEdit).toBe(true)
     // Unplayed quals only (match 1 has scores).
     expect(res?.predictions.map((p) => p.number)).toEqual([2, 3])
@@ -228,6 +230,25 @@ describe("warGames draft board", () => {
     expect(new Set(placed).size).toBe(24)
   })
 
+  test("clearBoard keeps captains and locked teams; a locked seed is skipped for captain", async () => {
+    const { s1 } = await setup()
+    const id = await s1.as.mutation(api.warGames.create, { name: "A" })
+    const before = (await s1.as.query(api.warGames.get, { warGameId: id }))!
+    const seeds = before.standings.map((s) => s.teamNumber)
+    await s1.as.mutation(api.warGames.runDraft, { warGameId: id })
+    // Lock the #1 seed into alliance 3's pick 1: it can't also captain.
+    const board = emptyBoard()
+    board[2].slots[1] = seeds[0]
+    await s1.as.mutation(api.warGames.setAlliances, { warGameId: id, alliances: board })
+    await s1.as.mutation(api.warGames.toggleLock, { warGameId: id, alliance: 2, slot: 1 })
+
+    await s1.as.mutation(api.warGames.clearBoard, { warGameId: id })
+    const alliances = (await s1.as.query(api.warGames.get, { warGameId: id }))!.scenario.alliances
+    expect(alliances.map((a) => a.slots[0])).toEqual(seeds.slice(1, 9))
+    expect(alliances[2]).toEqual({ slots: [seeds[3], seeds[0], null], locked: [false, true, false] })
+    expect(alliances.flatMap((a, i) => (i === 2 ? [a.slots[2]] : a.slots.slice(1)))).toEqual(Array(15).fill(null))
+  })
+
   test("runDraft respects a locked slot", async () => {
     const { s1 } = await setup()
     const id = await s1.as.mutation(api.warGames.create, { name: "A" })
@@ -236,7 +257,7 @@ describe("warGames draft board", () => {
     await s1.as.mutation(api.warGames.setAlliances, { warGameId: id, alliances: board })
     await s1.as.mutation(api.warGames.toggleLock, { warGameId: id, alliance: 2, slot: 1 })
     let alliances = (await s1.as.query(api.warGames.get, { warGameId: id }))!.scenario.alliances
-    expect(alliances[2]).toEqual({ slots: [null, 30, null], locked: [false, true, false] })
+    expect(alliances[2]).toMatchObject({ slots: [expect.any(Number), 30, null], locked: [false, true, false] })
 
     await s1.as.mutation(api.warGames.runDraft, { warGameId: id })
     alliances = (await s1.as.query(api.warGames.get, { warGameId: id }))!.scenario.alliances

@@ -66,7 +66,8 @@ export function useWarGameMutations() {
   )
 
   const runDraft = useMutation(api.warGames.runDraft)
+  const clearBoard = useMutation(api.warGames.clearBoard)
   const remove = useMutation(api.warGames.remove)
 
-  return { setPrediction, resetPredictions, updateSettings, setAlliances, toggleLock, rename, runDraft, remove }
+  return { setPrediction, resetPredictions, updateSettings, setAlliances, toggleLock, rename, runDraft, clearBoard, remove }
 }

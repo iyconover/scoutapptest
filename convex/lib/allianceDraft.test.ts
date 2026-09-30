@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest"
-import { draftAlliances } from "./allianceDraft"
+import { draftAlliances, refreshCaptains } from "./allianceDraft"
 import { ALLIANCE_COUNT } from "./constants"
 import type { Alliance } from "./validators"
 
@@ -222,5 +222,27 @@ describe("draftAlliances", () => {
     expect(seedOrder).toEqual(SEEDS)
     expect(result[0].slots).not.toBe(alliances[0].slots)
     expect(result[0].locked).not.toBe(alliances[0].locked)
+  })
+})
+
+describe("refreshCaptains", () => {
+  const board = (rows: [number | null, number | null, number | null, boolean?][]): Alliance[] =>
+    Array.from({ length: ALLIANCE_COUNT }, (_, i) => {
+      const [c, p1, p2, lockCaptain] = rows[i] ?? [null, null, null]
+      return { slots: [c, p1, p2], locked: [lockCaptain === true, false, false] }
+    })
+  const seeds = Array.from({ length: 20 }, (_, i) => i + 1)
+
+  test("fills unlocked captains in seed order, keeping picks", () => {
+    const out = refreshCaptains(board([[9, 5, null]]), seeds)
+    // Seed 5 is a pick, so it's skipped for captain.
+    expect(out.map((a) => a.slots[0])).toEqual([1, 2, 3, 4, 6, 7, 8, 9])
+    expect(out[0].slots.slice(1)).toEqual([5, null])
+  })
+
+  test("follows a new seed order and pins locked captains", () => {
+    const out = refreshCaptains(board([[12, null, null, true]]), [...seeds].reverse())
+    expect(out[0].slots[0]).toBe(12)
+    expect(out.slice(1).map((a) => a.slots[0])).toEqual([20, 19, 18, 17, 16, 15, 14])
   })
 })

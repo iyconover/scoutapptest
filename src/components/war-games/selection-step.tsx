@@ -16,6 +16,17 @@ import { EraserIcon, LockIcon, LockOpenIcon, SearchIcon, SparklesIcon } from "lu
 import { useState } from "react"
 import { toast } from "sonner"
 
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -25,8 +36,7 @@ import { useOpenTeam } from "@/hooks/use-open-team"
 import { errorMessage } from "@/lib/errors"
 import { cn } from "@/lib/utils"
 import type { Alliance } from "../../../convex/lib/validators"
-import { applyDrop, clearUnlocked, placedTeams, type BoardLocation } from "./board"
-import { ManualOrderList } from "./manual-order-list"
+import { applyDrop, placedTeams, type BoardLocation } from "./board"
 import { NonTouchPointerSensor } from "./sensors"
 import { TeamCard } from "./team-card"
 import {
@@ -279,10 +289,10 @@ function UnpickedColumn({
 
 function DraftControls({ data }: { data: WarGameData }) {
   const { scenario, canEdit } = data
-  const { updateSettings, runDraft, setAlliances } = useWarGameMutations()
+  const { updateSettings, runDraft, clearBoard } = useWarGameMutations()
   const [drafting, setDrafting] = useState(false)
   const [clearing, setClearing] = useState(false)
-  const cleared = clearUnlocked(scenario.alliances)
+  const [confirmDraft, setConfirmDraft] = useState(false)
 
   function onMethod(next: string[]) {
     const method = next[0]
@@ -303,11 +313,10 @@ function DraftControls({ data }: { data: WarGameData }) {
   }
 
   async function onClear() {
-    if (!cleared) return
     setClearing(true)
     try {
-      await setAlliances({ warGameId: scenario._id, alliances: cleared })
-      toast.success("Unlocked slots cleared.")
+      await clearBoard({ warGameId: scenario._id })
+      toast.success("Selection board cleared.")
     } catch (e) {
       toast.error(errorMessage(e))
     } finally {
@@ -352,18 +361,43 @@ function DraftControls({ data }: { data: WarGameData }) {
         </div>
         {canEdit && (
           <div className="flex flex-wrap gap-2">
-            <Button className="h-11 md:h-9" disabled={drafting} onClick={() => void onRunDraft()}>
-              {drafting ? <Spinner data-icon="inline-start" /> : <SparklesIcon data-icon="inline-start" />}
-              Run auto selection
-            </Button>
+            {scenario.method !== "manual" && (
+              <AlertDialog open={confirmDraft} onOpenChange={setConfirmDraft}>
+                <AlertDialogTrigger render={<Button className="h-11 md:h-9" disabled={drafting} />}>
+                  {drafting ? <Spinner data-icon="inline-start" /> : <SparklesIcon data-icon="inline-start" />}
+                  Run auto selection
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Run auto selection?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Every unlocked slot on the selection board will be refilled by {METHOD_LABELS[scenario.method]}.
+                      Locked slots are kept.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel className="h-11 sm:h-8">Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      className="h-11 sm:h-8"
+                      onClick={() => {
+                        setConfirmDraft(false)
+                        void onRunDraft()
+                      }}
+                    >
+                      Run auto selection
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            )}
             <Button
               variant="outline"
               className="h-11 md:h-9"
-              disabled={cleared === null || clearing}
+              disabled={clearing}
               onClick={() => void onClear()}
             >
               {clearing ? <Spinner data-icon="inline-start" /> : <EraserIcon data-icon="inline-start" />}
-              Clear unlocked
+              Clear selection board
             </Button>
           </div>
         )}
@@ -413,10 +447,7 @@ export function SelectionStep({ data }: { data: WarGameData }) {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className={cn("grid gap-6", scenario.method === "manual" && "xl:grid-cols-2 xl:items-start")}>
-        <DraftControls data={data} />
-        {scenario.method === "manual" && <ManualOrderList data={data} />}
-      </div>
+      <DraftControls data={data} />
 
       <DndContext
         sensors={sensors}
