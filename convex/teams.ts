@@ -40,6 +40,7 @@ export const list = query({
       matchesRanked: v.number(),
       opr: v.union(v.number(), v.null()),
       eventRank: v.union(v.number(), v.null()),
+      matchesPlayed: v.number(),
       tier: v.union(columnV, v.null()),
       /** Position within `tier` on that pick list (fractional; ascending = higher on the list). */
       tierOrder: v.union(v.number(), v.null()),
@@ -90,6 +91,7 @@ export const list = query({
         matchesRanked: agg?.matchesRanked ?? 0,
         opr: insight?.opr ?? null,
         eventRank: insight?.rank ?? null,
+        matchesPlayed: insight?.matchesPlayed ?? 0,
         tier: tiers.get(t.number)?.column ?? null,
         tierOrder: tiers.get(t.number)?.order ?? null,
       }

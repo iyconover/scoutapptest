@@ -5,15 +5,16 @@ import { COLUMNS, type Column } from "../../../convex/lib/validators"
 
 export type TeamRow = FunctionReturnType<typeof api.teams.list>[number]
 
-export type SortKey = "number" | "ourRank" | "opr" | "tier"
+export type SortKey = "number" | "eventRank" | "ourRank" | "opr" | "tier"
 
 export const SORT_LABELS: Record<SortKey, string> = {
   number: "Team number",
+  eventRank: "Event ranking",
   ourRank: "Our ranking",
   opr: "OPR",
   tier: "Pick list order",
 }
-export const SORT_KEYS: readonly SortKey[] = ["number", "ourRank", "opr", "tier"]
+export const SORT_KEYS: readonly SortKey[] = ["number", "eventRank", "ourRank", "opr", "tier"]
 
 type Cmp = (a: TeamRow, b: TeamRow) => number
 
@@ -30,6 +31,8 @@ const tierIndex = (tier: Column | null) => (tier === null ? null : COLUMNS.index
 const byNumber: Cmp = (a, b) => a.number - b.number
 /** avgRank: 1 is best, so ascending. */
 const byOurRank: Cmp = (a, b) => nullsLast(a.avgRank, b.avgRank, 1) || byNumber(a, b)
+/** Official event rank: 1 is best. */
+const byEventRank: Cmp = (a, b) => nullsLast(a.eventRank, b.eventRank, 1) || byNumber(a, b)
 const byOpr: Cmp = (a, b) => nullsLast(a.opr, b.opr, -1) || byNumber(a, b)
 /** Exactly as the pick list board shows it: column order, then position within the column. */
 const byTier: Cmp = (a, b) =>
@@ -37,6 +40,7 @@ const byTier: Cmp = (a, b) =>
 
 const COMPARATORS: Record<SortKey, Cmp> = {
   number: byNumber,
+  eventRank: byEventRank,
   ourRank: byOurRank,
   opr: byOpr,
   tier: byTier,
@@ -44,6 +48,11 @@ const COMPARATORS: Record<SortKey, Cmp> = {
 
 export function sortTeams(teams: readonly TeamRow[], sort: SortKey): TeamRow[] {
   return [...teams].sort(COMPARATORS[sort])
+}
+
+/** Event ranking once every team has played a match, team number before that. */
+export function defaultSort(teams: readonly TeamRow[] | undefined): SortKey {
+  return teams && teams.length > 0 && teams.every((t) => t.matchesPlayed > 0) ? "eventRank" : "number"
 }
 
 export function matchesSearch(team: TeamRow, query: string): boolean {
@@ -100,4 +109,31 @@ export function formatDelta(delta: number | null): string {
 export function deltaClass(delta: number | null): string {
   if (delta === null || delta === 0) return "text-muted-foreground"
   return delta > 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"
+}
+
+export type CompareMetric = "eventRank" | "ourRank" | "tier" | "opr"
+
+export const COMPARE_LABELS: Record<CompareMetric, string> = {
+  eventRank: "Event ranking",
+  ourRank: "Our ranking",
+  tier: "Pick list",
+  opr: "Blue Alliance OPR",
+}
+export const COMPARE_METRICS: readonly CompareMetric[] = ["eventRank", "ourRank", "tier", "opr"]
+
+/** Position of every team under one metric (1 = best), computed over the whole event. */
+export function metricPositions(teams: readonly TeamRow[], metric: CompareMetric): Map<number, number> {
+  switch (metric) {
+    case "eventRank":
+      return positions(teams, (t) => t.eventRank, 1)
+    case "ourRank":
+      return positions(teams, (t) => t.avgRank, 1)
+    case "opr":
+      return positions(teams, (t) => t.opr, -1)
+    case "tier": {
+      // Board order has no ties: position is just the index among teams on the list.
+      const onList = teams.filter((t) => t.tier !== null).sort(byTier)
+      return new Map(onList.map((t, i) => [t.number, i + 1]))
+    }
+  }
 }

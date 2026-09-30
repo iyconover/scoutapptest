@@ -15,7 +15,7 @@ export function TeamList({
   teams: TeamRow[]
   showTier: boolean
   /** Which metric the phone cards show large (the one being sorted by). */
-  primary: "rank" | "opr"
+  primary: "rank" | "opr" | "eventRank"
 }) {
   const isDesktop = useIsDesktop()
   return isDesktop ? (
@@ -25,11 +25,15 @@ export function TeamList({
   )
 }
 
+function formatEventRank(rank: number | null) {
+  return rank === null ? "—" : `#${rank}`
+}
+
 function reports(n: number) {
   return `${n} ${n === 1 ? "report" : "reports"}`
 }
 
-function TeamCards({ teams, showTier, primary }: { teams: TeamRow[]; showTier: boolean; primary: "rank" | "opr" }) {
+function TeamCards({ teams, showTier, primary }: { teams: TeamRow[]; showTier: boolean; primary: "rank" | "opr" | "eventRank" }) {
   const openTeam = useOpenTeam()
   return (
     <ul className="flex flex-col gap-2">
@@ -50,7 +54,15 @@ function TeamCards({ teams, showTier, primary }: { teams: TeamRow[]; showTier: b
               </span>
             </span>
             <span className="flex shrink-0 flex-col items-end">
-              {primary === "opr" ? (
+              {primary === "eventRank" ? (
+                <>
+                  <span className="text-lg font-semibold tabular-nums">{formatEventRank(t.eventRank)}</span>
+                  <span className="text-[11px] text-muted-foreground">event rank</span>
+                  <span className="text-[11px] text-muted-foreground tabular-nums">
+                    avg {formatRank(t.avgRank)} · OPR {formatOpr(t.opr)}
+                  </span>
+                </>
+              ) : primary === "opr" ? (
                 <>
                   <span className="text-lg font-semibold tabular-nums">{formatOpr(t.opr)}</span>
                   <span className="text-[11px] text-muted-foreground">OPR</span>
@@ -82,6 +94,7 @@ function TeamTable({ teams, showTier }: { teams: TeamRow[]; showTier: boolean })
             <TableHead>Name</TableHead>
             <TableHead>Pit</TableHead>
             <TableHead className="text-right">Reports</TableHead>
+            <TableHead className="text-right">Event rank</TableHead>
             <TableHead className="text-right">Our avg rank</TableHead>
             <TableHead className="text-right">OPR</TableHead>
             {showTier && <TableHead className="pr-3">Tier</TableHead>}
@@ -98,6 +111,7 @@ function TeamTable({ teams, showTier }: { teams: TeamRow[]; showTier: boolean })
                 <PitBadge scouted={t.pitScouted} />
               </TableCell>
               <TableCell className="text-right tabular-nums">{t.reportCount}</TableCell>
+              <TableCell className="text-right tabular-nums">{formatEventRank(t.eventRank)}</TableCell>
               <TableCell className="text-right font-medium tabular-nums">
                 {formatRank(t.avgRank)}
                 {t.matchesRanked > 0 && (

@@ -39,7 +39,7 @@ function AllianceCells({
           >
             <span className="font-semibold tabular-nums">{cell.teamNumber}</span>
             <span className="text-xs font-normal text-muted-foreground tabular-nums">
-              avg {formatRank(cell.avgRank)}
+              {formatRank(cell.avgRank)}
             </span>
           </TeamLink>
         ))}

@@ -16,7 +16,7 @@ export function AppHeader() {
     <header className="sticky top-0 z-40 flex h-14 items-center gap-2 border-b bg-background/95 px-3 backdrop-blur sm:px-4">
       {isAuthenticated && <MobileNav />}
       <Link to="/" className="mr-2 font-heading font-semibold">
-        Scout
+        TimberScout
       </Link>
       {isAuthenticated && <DesktopNav />}
       <div className="ml-auto flex items-center gap-1">

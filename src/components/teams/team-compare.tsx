@@ -1,11 +1,39 @@
-import { useState } from "react"
+import { useMemo, useState } from "react"
 
-import { deltaClass, formatDelta, type ComparePosition, type TeamRow } from "@/components/teams/team-sort"
+import {
+  COMPARE_LABELS,
+  deltaClass,
+  formatDelta,
+  metricPositions,
+  type CompareMetric,
+  type TeamRow,
+} from "@/components/teams/team-sort"
 import { useOpenTeam } from "@/hooks/use-open-team"
 import { formatOpr, formatRank } from "@/lib/format"
 import { cn } from "@/lib/utils"
 
-const NO_POSITION: ComparePosition = { our: null, opr: null, delta: null }
+import type { Column } from "../../../convex/lib/validators"
+
+const TIER_SHORT: Record<Column, string> = {
+  tier1: "Tier 1",
+  tier2: "Tier 2",
+  tier3: "Tier 3",
+  dnp: "DNP",
+  uncategorized: "—",
+}
+
+function formatMetric(t: TeamRow, metric: CompareMetric): string {
+  switch (metric) {
+    case "eventRank":
+      return t.eventRank === null ? "—" : `#${t.eventRank}`
+    case "ourRank":
+      return formatRank(t.avgRank)
+    case "opr":
+      return formatOpr(t.opr)
+    case "tier":
+      return t.tier === null ? "—" : TIER_SHORT[t.tier]
+  }
+}
 
 /** Ascending by position, unpositioned teams last (by team number). */
 function byPosition(teams: TeamRow[], position: (t: TeamRow) => number | null) {
@@ -20,46 +48,54 @@ function byPosition(teams: TeamRow[], position: (t: TeamRow) => number | null) {
 }
 
 /**
- * Two lists side by side: teams ordered by our ranking and by OPR.
- * Delta (▲ = we rate them higher than OPR does) shows on our-ranking side only.
+ * Two lists side by side, each ordered by a chosen metric.
+ * Delta (▲ = the left metric rates them higher than the right one) shows on the left side only.
+ * Positions come from `allTeams` so a search filter doesn't renumber them.
  * Hovering or focusing a team highlights it in both lists.
  */
 export function TeamCompare({
   teams,
-  positions,
+  allTeams,
+  left,
+  right,
 }: {
   teams: TeamRow[]
-  positions: Map<number, ComparePosition>
+  allTeams: TeamRow[]
+  left: CompareMetric
+  right: CompareMetric
 }) {
   const [active, setActive] = useState<number | null>(null)
-  const get = (t: TeamRow) => positions.get(t.number) ?? NO_POSITION
-
-  const ours = byPosition(teams, (t) => get(t).our)
-  const opr = byPosition(teams, (t) => get(t).opr)
+  const leftPos = useMemo(() => metricPositions(allTeams, left), [allTeams, left])
+  const rightPos = useMemo(() => metricPositions(allTeams, right), [allTeams, right])
+  const pos = (m: Map<number, number>, t: TeamRow) => m.get(t.number) ?? null
+  const delta = (t: TeamRow) => {
+    const l = pos(leftPos, t)
+    const r = pos(rightPos, t)
+    return l !== null && r !== null ? r - l : null
+  }
 
   return (
     <div className="grid grid-cols-2 gap-2 sm:gap-4">
       <CompareColumn
-        title="Our ranking"
-        rows={ours}
-        position={(t) => get(t).our}
-        value={(t) => formatRank(t.avgRank)}
-        delta={(t) => get(t).delta}
+        title={COMPARE_LABELS[left]}
+        rows={byPosition(teams, (t) => pos(leftPos, t))}
+        position={(t) => pos(leftPos, t)}
+        value={(t) => formatMetric(t, left)}
+        delta={delta}
         active={active}
         onActive={setActive}
       />
       <CompareColumn
-        title="Blue Alliance OPR"
-        rows={opr}
-        position={(t) => get(t).opr}
-        value={(t) => formatOpr(t.opr)}
+        title={COMPARE_LABELS[right]}
+        rows={byPosition(teams, (t) => pos(rightPos, t))}
+        position={(t) => pos(rightPos, t)}
+        value={(t) => formatMetric(t, right)}
         active={active}
         onActive={setActive}
       />
     </div>
   )
 }
-
 function CompareColumn({
   title,
   rows,
